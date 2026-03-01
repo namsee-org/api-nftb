@@ -12,6 +12,10 @@ servers:
   - url: http://localhost:8080
     description: Local development server
 
+tags:
+  - name: HelloWorld
+    description: Hello World operations
+
 paths:
   /data:
     get:

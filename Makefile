@@ -4,7 +4,7 @@
 # Linting (uses shared config: tools/lint/.golangci.yml)
 # ──────────────────────────────────────────────
 
-GOLANGCI_LINT_VERSION := v2.9.0
+GOLANGCI_LINT_VERSION := v2.10.1
 LINT_CONFIG           := tools/lint/.golangci.yml
 
 ## Install golangci-lint
