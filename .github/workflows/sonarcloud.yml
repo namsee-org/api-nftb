@@ -1,0 +1,19 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run SonarCloud Scan
+        uses: namsee-org/cicd-platform/.github/actions/sonarqube@main
+        with:
+          sonar-token: ${{ secrets.SONARQUBE_TOKEN }}
