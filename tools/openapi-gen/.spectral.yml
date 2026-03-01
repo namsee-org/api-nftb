@@ -1,0 +1,76 @@
+extends:
+  - "spectral:oas"
+
+rules:
+  # ── Zalando: Must use kebab-case for path segments ──────────
+  zalando-path-kebab-case:
+    description: "Zalando: Path segments must use kebab-case (lowercase with hyphens)"
+    severity: warn
+    given: "$.paths"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^(/[a-z][a-z0-9-]*)+$"
+
+  # ── Zalando: Must use snake_case for property names ─────────
+  zalando-property-snake-case:
+    description: "Zalando: Property names must use snake_case"
+    severity: warn
+    given: "$.components.schemas..properties"
+    then:
+      field: "@key"
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9_]*$"
+
+  # ── Zalando: Must use RFC 7807 Problem Details for errors ───
+  zalando-problem-json-for-errors:
+    description: "Zalando: Error responses should use application/problem+json"
+    severity: warn
+    given: "$.paths.*.*.responses[?(@property >= '400' && @property < '600')].content"
+    then:
+      field: "application/problem+json"
+      function: truthy
+
+  # ── Zalando: Must have contact info ─────────────────────────
+  zalando-info-contact:
+    description: "Zalando: API must have contact information"
+    severity: error
+    given: "$.info"
+    then:
+      field: "contact"
+      function: truthy
+
+  # ── Zalando: Operation must have operationId ────────────────
+  zalando-operation-id:
+    description: "Zalando: Every operation must have an operationId"
+    severity: error
+    given: "$.paths.*.*"
+    then:
+      field: "operationId"
+      function: truthy
+
+  # ── Zalando: Operation must have summary or description ─────
+  zalando-operation-summary:
+    description: "Zalando: Every operation must have a summary"
+    severity: warn
+    given: "$.paths.*.*"
+    then:
+      field: "summary"
+      function: truthy
+
+  # ── Zalando: Must define success response ───────────────────
+  zalando-success-response:
+    description: "Zalando: Operations must define at least one success response (2xx)"
+    severity: error
+    given: "$.paths.*.*.responses"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: ["200"]
+            - required: ["201"]
+            - required: ["202"]
+            - required: ["204"]

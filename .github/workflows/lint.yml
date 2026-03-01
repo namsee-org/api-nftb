@@ -1,0 +1,160 @@
+name: Lint Check
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install golangci-lint
+        run: make lint-install
+
+      - name: Run Go linter
+        id: go_lint
+        continue-on-error: true
+        run: |
+          make lint 2>&1 | tee go-lint-output.txt
+
+      - name: Upload Go lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-lint-results
+          path: go-lint-output.txt
+
+  api-lint:
+    name: OpenAPI Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run OpenAPI linter
+        id: api_lint
+        continue-on-error: true
+        run: |
+          make api-lint 2>&1 | tee api-lint-output.txt
+
+      - name: Upload API lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-lint-results
+          path: api-lint-output.txt
+
+  lint-summary:
+    name: Lint Summary
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    needs: [go-lint, api-lint]
+    steps:
+      - name: Download Go lint results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: go-lint-results
+
+      - name: Download API lint results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: api-lint-results
+
+      - name: Build and post summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const goResult = '${{ needs.go-lint.result }}';
+            const apiResult = '${{ needs.api-lint.result }}';
+
+            let goOutput = 'No output available';
+            let apiOutput = 'No output available';
+
+            try { goOutput = fs.readFileSync('go-lint-output.txt', 'utf8').trim(); } catch {}
+            try { apiOutput = fs.readFileSync('api-lint-output.txt', 'utf8').trim(); } catch {}
+
+            const goIcon = goResult === 'success' ? '✅' : '❌';
+            const apiIcon = apiResult === 'success' ? '✅' : '❌';
+            const overall = (goResult === 'success' && apiResult === 'success') ? '✅ All checks passed!' : '❌ Some checks failed.';
+
+            const body = [
+              `## 🔍 Lint Check Summary`,
+              ``,
+              `| Check | Status |`,
+              `|-------|--------|`,
+              `| Go Lint | ${goIcon} ${goResult} |`,
+              `| OpenAPI Lint | ${apiIcon} ${apiResult} |`,
+              ``,
+              `**Overall: ${overall}**`,
+              ``,
+              `<details><summary>📋 Go Lint Output</summary>`,
+              ``,
+              '```',
+              goOutput,
+              '```',
+              `</details>`,
+              ``,
+              `<details><summary>📋 OpenAPI Lint Output</summary>`,
+              ``,
+              '```',
+              apiOutput,
+              '```',
+              `</details>`,
+            ].join('\n');
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const marker = '## 🔍 Lint Check Summary';
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+            // Fail the job if any lint check failed
+            if (goResult !== 'success' || apiResult !== 'success') {
+              core.setFailed('Lint checks failed. See the summary comment for details.');
+            }

@@ -1,0 +1,73 @@
+openapi: 3.0.3
+info:
+  title: HelloWorlds Service API
+  description: |
+    A simple hello world microservice.
+    Follows [Zalando RESTful API Guidelines](https://opensource.zalando.com/restful-api-guidelines/).
+  version: 1.0.0
+  contact:
+    name: namsee-org
+    url: https://github.com/namsee-org/todolist-api
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: HelloWorld
+    description: Hello World operations
+
+paths:
+  /data:
+    get:
+      summary: Get hello world message
+      description: Returns a simple hello world greeting.
+      operationId: getHelloWorld
+      tags:
+        - HelloWorld
+      responses:
+        "200":
+          description: Successful hello world response.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Hello world"
+        "500":
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+components:
+  schemas:
+    Problem:
+      type: object
+      description: RFC 7807 Problem Details for HTTP APIs.
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference that identifies the problem type.
+          example: https://httpstatuses.com/500
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+          example: Internal Server Error
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code.
+          example: 500
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence.
+          example: An unexpected error occurred.
+        instance:
+          type: string
+          format: uri
+          description: A URI reference identifying the specific occurrence.
